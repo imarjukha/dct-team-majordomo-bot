@@ -118,3 +118,11 @@ class ActivityLog(Base):
     message_count = Column(Integer, default=0)
 
     group = relationship("Group", back_populates="activity")
+
+
+class AdminState(Base):
+    """Stores pending input state for admin users (replaces context.user_data)."""
+    __tablename__ = "admin_state"
+
+    tg_user_id = Column(BigInteger, primary_key=True)
+    action = Column(String, nullable=True)  # "bu" | "venue" | "role" | None
