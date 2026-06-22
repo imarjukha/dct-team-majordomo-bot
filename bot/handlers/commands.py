@@ -1,9 +1,28 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
 from sqlalchemy import select, func, delete
 from db.database import AsyncSessionLocal
 from db.models import Group, Employee, BusinessUnit, Venue, Role, AdminState
 from bot.handlers.admin_auth import require_admin, is_admin
+
+ADMIN_KEYBOARD = ReplyKeyboardMarkup(
+    [
+        ["🏢 Бизнес-юниты", "🏠 Заведения"],
+        ["💼 Роли", "👥 Сотрудники"],
+        ["📋 Группы", "⚙️ Главное меню"],
+    ],
+    resize_keyboard=True,
+    is_persistent=True,
+)
+
+REPLY_KB_ROUTES = {
+    "🏢 Бизнес-юниты": "admin:bus",
+    "🏠 Заведения": "admin:venues",
+    "💼 Роли": "admin:roles",
+    "👥 Сотрудники": "admin:employees",
+    "📋 Группы": "admin:groups",
+}
+
 
 
 async def _get_state(user_id: int) -> str | None:
@@ -42,6 +61,7 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "⚙️ *Панель управления*", parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+    await update.message.reply_text("Быстрый доступ:", reply_markup=ADMIN_KEYBOARD)
 
 
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -191,6 +211,56 @@ async def _ask_venue_bu(update, user_id: int, venue_name: str):
     )
 
 
+
+async def _handle_nav_message(update: Update, user_id: int, route: str):
+    """Handle Reply Keyboard navigation buttons."""
+    async with AsyncSessionLocal() as session:
+        if route == "admin:bus":
+            bus = (await session.scalars(select(BusinessUnit))).all()
+            text = ("🏢 *Бизнес-юниты:*\n" + "\n".join(f"• {b.name}" for b in bus)) if bus else "Нет бизнес-юнитов."
+            keyboard = [[InlineKeyboardButton("+ Добавить", callback_data="admin:add_bu")]]
+            await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif route == "admin:venues":
+            venues = (await session.scalars(select(Venue))).all()
+            if venues:
+                bus_map = {b.id: b.name for b in (await session.scalars(select(BusinessUnit))).all()}
+                lines = [f"• {v.name} [{bus_map.get(v.business_unit_id, '?')}]" for v in venues]
+                keyboard_rows = [
+                    [InlineKeyboardButton(f"✏️ {v.name} → BU", callback_data=f"admin:venue_set_bu:{v.id}")]
+                    for v in venues
+                ]
+                keyboard_rows.append([InlineKeyboardButton("+ Добавить", callback_data="admin:add_venue")])
+                text = "🏠 *Заведения:*\n" + "\n".join(lines)
+            else:
+                text = "Нет заведений."
+                keyboard_rows = [[InlineKeyboardButton("+ Добавить", callback_data="admin:add_venue")]]
+            await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard_rows))
+
+        elif route == "admin:roles":
+            roles = (await session.scalars(select(Role))).all()
+            text = ("💼 *Роли:*\n" + "\n".join(f"• {r.name}" for r in roles)) if roles else "Нет ролей."
+            keyboard = [[InlineKeyboardButton("+ Добавить", callback_data="admin:add_role")]]
+            await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+
+        elif route == "admin:employees":
+            total = await session.scalar(select(func.count(Employee.id)))
+            active = await session.scalar(
+                select(func.count(Employee.id)).where(Employee.status == "active")
+            )
+            await update.message.reply_text(
+                f"👥 *Сотрудники:*\nВсего: {total}\nАктивных: {active}",
+                parse_mode="Markdown"
+            )
+
+        elif route == "admin:groups":
+            groups = (await session.scalars(select(Group))).all()
+            text = ("📋 *Группы:*\n" + "\n".join(
+                f"• {g.name} {'✅' if g.is_configured else '⚙️ не настроена'}" for g in groups
+            )) if groups else "Групп пока нет. Добавь бота в группу и выполни /setup."
+            await update.message.reply_text(text, parse_mode="Markdown")
+
+
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type != "private":
         return
@@ -198,6 +268,29 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_id = update.effective_user.id
+    text = update.message.text
+
+    # Reply Keyboard navigation
+    if text == "⚙️ Главное меню":
+        await _set_state(user_id, None)
+        keyboard = [
+            [InlineKeyboardButton("📋 Группы", callback_data="admin:groups"),
+             InlineKeyboardButton("👥 Сотрудники", callback_data="admin:employees")],
+            [InlineKeyboardButton("🏢 Бизнес-юниты", callback_data="admin:bus"),
+             InlineKeyboardButton("🏠 Заведения", callback_data="admin:venues")],
+            [InlineKeyboardButton("💼 Роли", callback_data="admin:roles")],
+        ]
+        await update.message.reply_text(
+            "⚙️ *Панель управления*", parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
+    if text in REPLY_KB_ROUTES:
+        await _set_state(user_id, None)
+        await _handle_nav_message(update, user_id, REPLY_KB_ROUTES[text])
+        return
+
     adding = await _get_state(user_id)
     if not adding:
         return
