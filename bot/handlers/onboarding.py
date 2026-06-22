@@ -1,5 +1,5 @@
 from telegram import Bot, Message
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
 from sqlalchemy import select, or_
 from db.database import AsyncSessionLocal
@@ -83,6 +83,17 @@ async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
     )
 
 
+ADMIN_KEYBOARD = ReplyKeyboardMarkup(
+    [
+        ["🏢 Бизнес-юниты", "🏠 Заведения"],
+        ["💼 Роли", "👥 Сотрудники"],
+        ["📋 Группы", "⚙️ Главное меню"],
+    ],
+    resize_keyboard=True,
+    is_persistent=True,
+)
+
+
 async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """When someone writes /start — identify them and save tg_user_id."""
     user = update.effective_user
@@ -98,7 +109,8 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 admin.tg_username = username or admin.tg_username
                 await session.commit()
         await update.message.reply_text(
-            "👑 Привет, суперадмин! Используй /admin для управления."
+            "👑 Привет, суперадмин! Используй /admin для управления.",
+            reply_markup=ADMIN_KEYBOARD
         )
         return
 
@@ -118,7 +130,8 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await session.commit()
             await update.message.reply_text(
                 f"✅ Привет, {user.first_name}! Ты зарегистрирован как администратор бота.\n"
-                "Используй /admin для управления."
+                "Используй /admin для управления.",
+                reply_markup=ADMIN_KEYBOARD
             )
             return
 
