@@ -17,7 +17,8 @@ from bot.handlers.onboarding import handle_start
 from bot.handlers.activity import count_message
 from bot.handlers.commands import (
     cmd_debug,
-    admin_menu, admin_callback, handle_text_input, set_employee
+    admin_menu, admin_callback, handle_text_input, set_employee,
+    handle_new_venue_bu_callback,
 )
 from bot.handlers.admin_auth import (
     ensure_superadmin_in_db, cmd_add_admin, cmd_remove_admin, cmd_list_admins
@@ -35,9 +36,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     logger.error("Exception while handling update:", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
         try:
-            await update.effective_message.reply_text(
-                f"❌ Ошибка: {context.error}"
-            )
+            await update.effective_message.reply_text(f"❌ Ошибка: {context.error}")
         except Exception:
             pass
 
@@ -82,12 +81,13 @@ def main():
 
     # Inline callbacks
     app.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
+    app.add_handler(CallbackQueryHandler(handle_new_venue_bu_callback, pattern="^admin:new_venue_bu:"))
     app.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin:"))
 
     # Bot added to group
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_bot_added))
 
-    # PRIVATE: text input for admin panel — MUST be before HR group handler
+    # PRIVATE: text input for admin panel
     app.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
         handle_text_input
@@ -99,7 +99,7 @@ def main():
         hr_group_message
     ))
 
-    # Activity counter — all group messages
+    # Activity counter
     app.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, count_message))
 
     logger.info("Bot started")
