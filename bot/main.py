@@ -16,6 +16,9 @@ from bot.handlers.activity import count_message
 from bot.handlers.commands import (
     admin_menu, admin_callback, handle_text_input, set_employee
 )
+from bot.handlers.admin_auth import (
+    ensure_superadmin_in_db, cmd_add_admin, cmd_remove_admin, cmd_list_admins
+)
 from scheduler.weekly_report import send_weekly_report
 
 logging.basicConfig(
@@ -27,9 +30,9 @@ logger = logging.getLogger(__name__)
 
 async def post_init(application: Application):
     await init_db()
-    logger.info("Database initialized")
+    await ensure_superadmin_in_db()
+    logger.info("Database initialized, superadmin ensured")
 
-    # Weekly report every Monday at 09:00
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         send_weekly_report,
@@ -51,14 +54,19 @@ def main():
         .build()
     )
 
-    # /start — employee registers with bot
+    # /start — employee or admin registers
     app.add_handler(CommandHandler("start", handle_start))
 
-    # /admin — admin panel (private)
+    # Admin panel (private, protected)
     app.add_handler(CommandHandler("admin", admin_menu))
     app.add_handler(CommandHandler("set_employee", set_employee))
 
-    # /setup — group setup (in group)
+    # Admin management (superadmin only)
+    app.add_handler(CommandHandler("add_admin", cmd_add_admin))
+    app.add_handler(CommandHandler("remove_admin", cmd_remove_admin))
+    app.add_handler(CommandHandler("admins", cmd_list_admins))
+
+    # Group setup
     app.add_handler(CommandHandler("setup", setup_command))
 
     # Inline button callbacks
@@ -68,7 +76,7 @@ def main():
     # Bot added to group
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_bot_added))
 
-    # HR group messages — must come before generic counter
+    # HR group messages
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, hr_group_message))
 
     # Text input in private (adding BU/venue/role)
@@ -77,7 +85,7 @@ def main():
         handle_text_input
     ))
 
-    # Activity counter — all group messages
+    # Activity counter
     app.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, count_message))
 
     logger.info("Bot started")

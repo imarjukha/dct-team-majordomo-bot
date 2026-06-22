@@ -3,9 +3,10 @@ from telegram.ext import ContextTypes
 from sqlalchemy import select, func
 from db.database import AsyncSessionLocal
 from db.models import Group, Employee, BusinessUnit, Venue, Role, ActivityLog
+from bot.handlers.admin_auth import require_admin, require_superadmin
 
 
-# /admin — main menu (private chat only)
+@require_admin
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type != "private":
         return
@@ -25,6 +26,12 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
+    from bot.handlers.admin_auth import is_admin
+    if not await is_admin(query.from_user.id):
+        await query.edit_message_text("⛔ Нет доступа.")
+        return
+
     data = query.data
 
     async with AsyncSessionLocal() as session:
@@ -75,8 +82,8 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(f"Напиши название ({entity}):")
 
 
+@require_admin
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle text input for adding BU/venue/role."""
     if update.effective_chat.type != "private":
         return
 
@@ -92,7 +99,7 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             session.add(BusinessUnit(name=name))
             label = "Бизнес-юнит"
         elif adding == "venue":
-            session.add(Venue(name=name, business_unit_id=1))  # TODO: ask which BU
+            session.add(Venue(name=name, business_unit_id=1))
             label = "Заведение"
         elif adding == "role":
             session.add(Role(name=name))
@@ -104,20 +111,17 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ {label} «{name}» добавлен.")
 
 
-# /set_employee — manual correction command
+@require_admin
 async def set_employee(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    /set_employee @username role:Менеджер bu:Coffee venue:Bar1
-    """
-    from sqlalchemy import update as sa_update
+    import re
     args = " ".join(context.args)
-    username_match = __import__("re").search(r"@(\w+)", args)
+    username_match = re.search(r"@(\w+)", args)
     if not username_match:
         await update.message.reply_text("Укажи @username")
         return
 
     username = username_match.group(1)
-    params = dict(__import__("re").findall(r"(\w+):([^\s]+)", args))
+    params = dict(re.findall(r"(\w+):([^\s]+)", args))
 
     async with AsyncSessionLocal() as session:
         emp = await session.scalar(select(Employee).where(Employee.tg_username == username))

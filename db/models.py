@@ -43,19 +43,29 @@ class Role(Base):
     groups = relationship("Group", back_populates="role")
 
 
+class BotAdmin(Base):
+    __tablename__ = "bot_admins"
+
+    id = Column(Integer, primary_key=True)
+    tg_user_id = Column(BigInteger, unique=True, nullable=False)
+    tg_username = Column(String, nullable=True)
+    is_superadmin = Column(Boolean, default=False)
+    added_at = Column(DateTime, default=func.now())
+
+
 class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(Integer, primary_key=True)
-    tg_user_id = Column(BigInteger, unique=True, nullable=True)   # заполняется когда пишет боту
+    tg_user_id = Column(BigInteger, unique=True, nullable=True)
     tg_username = Column(String, nullable=True)
     name = Column(String, nullable=True)
 
-    business_unit_id = Column(Integer, ForeignKey("business_units.id"), nullable=False)
-    venue_id = Column(Integer, ForeignKey("venues.id"), nullable=False)
-    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
+    business_unit_id = Column(Integer, ForeignKey("business_units.id"), nullable=True)
+    venue_id = Column(Integer, ForeignKey("venues.id"), nullable=True)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
 
-    status = Column(String, default="active")   # active | fired
+    status = Column(String, default="active")
     hired_at = Column(DateTime, default=func.now())
     fired_at = Column(DateTime, nullable=True)
 
@@ -72,7 +82,6 @@ class Group(Base):
     tg_chat_id = Column(BigInteger, unique=True, nullable=False)
     name = Column(String, nullable=False)
 
-    # null = все (ANY)
     business_unit_id = Column(Integer, ForeignKey("business_units.id"), nullable=True)
     venue_id = Column(Integer, ForeignKey("venues.id"), nullable=True)
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)

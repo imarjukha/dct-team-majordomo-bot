@@ -112,3 +112,16 @@ async def handle_start(update, context):
             await update.message.reply_text(
                 "Привет! Ты пока не числишься в системе. Обратись к HR."
             )
+
+
+async def _update_admin_user_id(tg_username: str, tg_user_id: int):
+    """When a bot admin writes /start — link their tg_user_id in BotAdmin table."""
+    from sqlalchemy import update as sa_update
+    from db.models import BotAdmin
+    async with AsyncSessionLocal() as session:
+        admin = await session.scalar(
+            select(BotAdmin).where(BotAdmin.tg_username == tg_username)
+        )
+        if admin and admin.tg_user_id == 0:
+            admin.tg_user_id = tg_user_id
+            await session.commit()
