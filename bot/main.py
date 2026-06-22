@@ -54,38 +54,35 @@ def main():
         .build()
     )
 
-    # /start — employee or admin registers
+    # Commands
     app.add_handler(CommandHandler("start", handle_start))
-
-    # Admin panel (private, protected)
     app.add_handler(CommandHandler("admin", admin_menu))
     app.add_handler(CommandHandler("set_employee", set_employee))
-
-    # Admin management (superadmin only)
     app.add_handler(CommandHandler("add_admin", cmd_add_admin))
     app.add_handler(CommandHandler("remove_admin", cmd_remove_admin))
     app.add_handler(CommandHandler("admins", cmd_list_admins))
-
-    # Group setup
     app.add_handler(CommandHandler("setup", setup_command))
 
-    # Inline button callbacks
+    # Inline callbacks
     app.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
     app.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin:"))
 
     # Bot added to group
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_bot_added))
 
-    # HR group messages
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, hr_group_message))
-
-    # Text input in private (adding BU/venue/role)
+    # PRIVATE: text input for admin panel — MUST be before HR group handler
     app.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
         handle_text_input
     ))
 
-    # Activity counter
+    # GROUPS: HR group messages
+    app.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.ChatType.GROUPS,
+        hr_group_message
+    ))
+
+    # Activity counter — all group messages
     app.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, count_message))
 
     logger.info("Bot started")
