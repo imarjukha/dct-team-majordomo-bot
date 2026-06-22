@@ -187,3 +187,24 @@ async def set_employee(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await session.commit()
 
     await update.message.reply_text(f"✅ @{username} обновлён.")
+
+
+async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show current DB state for debugging."""
+    if not await is_admin(update.effective_user.id):
+        return
+    user_id = update.effective_user.id
+    state = await _get_state(user_id)
+    async with AsyncSessionLocal() as session:
+        bus = (await session.scalars(select(BusinessUnit))).all()
+        venues = (await session.scalars(select(Venue))).all()
+        roles = (await session.scalars(select(Role))).all()
+    lines = [
+        f"*Debug info*",
+        f"Your user_id: `{user_id}`",
+        f"Current state: `{state}`",
+        f"BUs in DB: {[b.name for b in bus]}",
+        f"Venues in DB: {[v.name for v in venues]}",
+        f"Roles in DB: {[r.name for r in roles]}",
+    ]
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")

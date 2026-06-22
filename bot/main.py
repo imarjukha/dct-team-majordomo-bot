@@ -14,6 +14,7 @@ from bot.handlers.hr_group import hr_group_message
 from bot.handlers.onboarding import handle_start
 from bot.handlers.activity import count_message
 from bot.handlers.commands import (
+    cmd_debug,
     admin_menu, admin_callback, handle_text_input, set_employee
 )
 from bot.handlers.admin_auth import (
@@ -62,6 +63,7 @@ def main():
     app.add_handler(CommandHandler("remove_admin", cmd_remove_admin))
     app.add_handler(CommandHandler("admins", cmd_list_admins))
     app.add_handler(CommandHandler("setup", setup_command))
+    app.add_handler(CommandHandler("debug", cmd_debug))
 
     # Inline callbacks
     app.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
@@ -91,3 +93,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+# already imported above — just need to add handler
