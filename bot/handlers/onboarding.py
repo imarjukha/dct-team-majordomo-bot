@@ -1,5 +1,6 @@
 from telegram import Bot, Message
-from telegram.ext import ContextTypes, Update
+from telegram import Update
+from telegram.ext import ContextTypes
 from sqlalchemy import select, or_
 from db.database import AsyncSessionLocal
 from db.models import Group, GroupMember, Employee, BotAdmin
