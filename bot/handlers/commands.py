@@ -199,12 +199,15 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bus = (await session.scalars(select(BusinessUnit))).all()
         venues = (await session.scalars(select(Venue))).all()
         roles = (await session.scalars(select(Role))).all()
-    lines = [
-        f"*Debug info*",
-        f"Your user_id: `{user_id}`",
-        f"Current state: `{state}`",
-        f"BUs in DB: {[b.name for b in bus]}",
-        f"Venues in DB: {[v.name for v in venues]}",
-        f"Roles in DB: {[r.name for r in roles]}",
-    ]
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    bu_names = ", ".join(b.name for b in bus) or "—"
+    venue_names = ", ".join(v.name for v in venues) or "—"
+    role_names = ", ".join(r.name for r in roles) or "—"
+    text = (
+        f"Debug info\n"
+        f"user_id: {user_id}\n"
+        f"state: {state}\n"
+        f"BUs: {bu_names}\n"
+        f"Venues: {venue_names}\n"
+        f"Roles: {role_names}"
+    )
+    await update.message.reply_text(text)
