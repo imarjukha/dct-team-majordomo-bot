@@ -2,5 +2,5 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python bot/main.py"
+startCommand = "PYTHONPATH=/app python bot/main.py"
 restartPolicyType = "on_failure"
