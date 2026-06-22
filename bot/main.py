@@ -1,9 +1,11 @@
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from telegram import Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
     CommandHandler,
+    ContextTypes,
     MessageHandler,
     filters,
 )
@@ -27,6 +29,17 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.error("Exception while handling update:", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                f"❌ Ошибка: {context.error}"
+            )
+        except Exception:
+            pass
 
 
 async def post_init(application: Application):
@@ -54,6 +67,8 @@ def main():
         .post_init(post_init)
         .build()
     )
+
+    app.add_error_handler(error_handler)
 
     # Commands
     app.add_handler(CommandHandler("start", handle_start))
@@ -93,4 +108,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# already imported above — just need to add handler
