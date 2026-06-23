@@ -48,7 +48,7 @@ async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "hire":
         await _handle_hire(
             update, context, username,
-            parsed.get("role_id"), parsed.get("bu_id"), parsed.get("venue_id"),
+            parsed.get("role_id"), parsed.get("bu_id"),
             parsed.get("missing", []), catalog
         )
     elif action == "fire":
@@ -65,7 +65,6 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
 
 Доступные значения в системе:
 - Бизнес-юниты: {bu_list}
-- Заведения: {venue_list}
 - Роли: {role_list}
 
 Верни ТОЛЬКО JSON без пояснений:
@@ -74,7 +73,6 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
   "username": "username_без_@" | null,
   "role_name": "точное название из списка или null",
   "bu_name": "точное название из списка или null",
-  "venue_name": "точное название из списка или null",
   "last_day": "YYYY-MM-DD" | null,
   "missing": ["role", "bu", "venue"]
 }}
@@ -111,16 +109,7 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
 
         role_id = find_id(data.get("role_name"), catalog["roles"])
         bu_id = find_id(data.get("bu_name"), catalog["bus"])
-        venue_id = find_id(data.get("venue_name"), catalog["venues"])
-
-        # Infer BU from venue
-        if venue_id and not bu_id:
-            for v in catalog["venues"]:
-                if v["id"] == venue_id:
-                    bu_id = v["bu_id"]
-                    break
-
-        # Parse last_day
+            # Parse last_day
         last_day = None
         raw_date = data.get("last_day")
         if raw_date:
@@ -132,14 +121,12 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
         missing = []
         if not role_id: missing.append("role")
         if not bu_id: missing.append("bu")
-        if not venue_id: missing.append("venue")
 
         return {
             "action": data.get("action"),
             "username": data.get("username"),
             "role_id": role_id,
             "bu_id": bu_id,
-            "venue_id": venue_id,
             "last_day": last_day,
             "missing": missing,
         }
@@ -147,16 +134,15 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
         return None
 
 
-async def _handle_hire(update, context, username, role_id, bu_id, venue_id, missing, catalog):
+async def _handle_hire(update, context, username, role_id, bu_id, missing, catalog):
     async with AsyncSessionLocal() as session:
         employee = await session.scalar(select(Employee).where(Employee.tg_username == username))
         if not employee:
-            employee = Employee(tg_username=username, role_id=role_id, business_unit_id=bu_id, venue_id=venue_id)
+            employee = Employee(tg_username=username, role_id=role_id, business_unit_id=bu_id)
             session.add(employee)
         else:
             if role_id: employee.role_id = role_id
             if bu_id: employee.business_unit_id = bu_id
-            if venue_id: employee.venue_id = venue_id
             employee.status = "active"
             employee.fired_at = None
         await session.commit()
@@ -253,7 +239,6 @@ async def handle_hr_clarify_callback(update: Update, context: ContextTypes.DEFAU
         missing = []
         if not employee.role_id: missing.append("role")
         if not employee.business_unit_id: missing.append("bu")
-        if not employee.venue_id: missing.append("venue")
         emp_copy = employee
 
     if missing:
@@ -292,12 +277,9 @@ async def _ask_clarification(target, username, missing, catalog, first: bool):
     if first_missing == "role":
         buttons = [[InlineKeyboardButton(r["name"], callback_data=f"hr_clarify:role:{username}:{r['id']}")] for r in catalog["roles"]]
         question = f"{'Уточни' if first else 'Теперь уточни'} роль для @{username}:"
-    elif first_missing == "bu":
+    else:  # bu
         buttons = [[InlineKeyboardButton(b["name"], callback_data=f"hr_clarify:bu:{username}:{b['id']}")] for b in catalog["bus"]]
         question = f"{'Уточни' if first else 'Теперь уточни'} бизнес-юнит для @{username}:"
-    else:
-        buttons = [[InlineKeyboardButton(v["name"], callback_data=f"hr_clarify:venue:{username}:{v['id']}")] for v in catalog["venues"]]
-        question = f"{'Уточни' if first else 'Теперь уточни'} заведение для @{username}:"
 
     still = [label_map[m] for m in missing[1:]]
     note = f"\n_После этого ещё уточним: {', '.join(still)}_" if still else ""
