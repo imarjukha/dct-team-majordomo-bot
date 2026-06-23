@@ -2,28 +2,25 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from telegram import Update
 from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
+    Application, CallbackQueryHandler, CommandHandler,
+    ContextTypes, MessageHandler, filters,
 )
 from config import BOT_TOKEN
 from db.database import init_db
 from bot.handlers.group_setup import on_bot_added, setup_command, setup_callback
-from bot.handlers.hr_group import hr_group_message, handle_hr_clarify_callback
+from bot.handlers.hr_group import (
+    hr_group_message, handle_hr_clarify_callback, handle_cancel_offboard_callback
+)
 from bot.handlers.onboarding import handle_start
 from bot.handlers.activity import count_message
 from bot.handlers.commands import (
-    cmd_debug,
-    admin_menu, admin_callback, handle_text_input, set_employee,
-    handle_new_venue_bu_callback,
+    cmd_debug, admin_menu, admin_callback, handle_text_input,
+    set_employee, handle_new_venue_bu_callback,
 )
 from bot.handlers.admin_auth import (
     ensure_superadmin_in_db, cmd_add_admin, cmd_remove_admin, cmd_list_admins
 )
-from scheduler.weekly_report import send_weekly_report
+from scheduler.weekly_report import send_weekly_report, process_scheduled_offboardings
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -47,14 +44,23 @@ async def post_init(application: Application):
     logger.info("Database initialized, superadmin ensured")
 
     scheduler = AsyncIOScheduler()
+
+    # Weekly activity report — Monday 9:00
     scheduler.add_job(
         send_weekly_report,
         trigger="cron",
-        day_of_week="mon",
-        hour=9,
-        minute=0,
+        day_of_week="mon", hour=9, minute=0,
         args=[application.bot],
     )
+
+    # Deferred offboardings — every day at 23:59
+    scheduler.add_job(
+        process_scheduled_offboardings,
+        trigger="cron",
+        hour=23, minute=59,
+        args=[application.bot],
+    )
+
     scheduler.start()
     logger.info("Scheduler started")
 
@@ -81,8 +87,9 @@ def main():
 
     # Inline callbacks
     app.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
-    app.add_handler(CallbackQueryHandler(handle_hr_clarify_callback, pattern="^hr_clarify:"))
     app.add_handler(CallbackQueryHandler(handle_new_venue_bu_callback, pattern="^admin:new_venue_bu:"))
+    app.add_handler(CallbackQueryHandler(handle_hr_clarify_callback, pattern="^hr_clarify:"))
+    app.add_handler(CallbackQueryHandler(handle_cancel_offboard_callback, pattern="^cancel_offboard:"))
     app.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin:"))
 
     # Bot added to group
