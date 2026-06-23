@@ -139,5 +139,6 @@ class ScheduledOffboarding(Base):
     hr_message_id = Column(Integer, nullable=True)       # сообщение HR для ответа
     created_at = Column(DateTime, default=func.now())
     cancelled = Column(Boolean, default=False)
+    initiated_by = Column(String, nullable=True)  # username кто уволил
 
     employee = relationship("Employee")
