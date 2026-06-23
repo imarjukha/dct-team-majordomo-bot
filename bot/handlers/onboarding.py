@@ -59,26 +59,35 @@ async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
     links_text = "\n".join(f"• {name}: {url}" for name, url in links)
 
     if emp.tg_user_id:
+        # Employee already wrote /start — send links directly
         try:
             await bot.send_message(
                 chat_id=emp.tg_user_id,
                 text=(
-                    f"👋 Добро пожаловать!\n\n"
+                    f"👋 Добро пожаловать в команду!\n\n"
                     f"Вот ссылки на твои рабочие группы:\n\n{links_text}\n\n"
                     "Ссылки одноразовые — используй каждую один раз."
                 )
             )
             await hr_message.reply_text(
-                f"✅ @{emp.tg_username} добавлен. Ссылки отправлены в личку ({len(links)} групп)."
+                f"✅ @{emp.tg_username} добавлен. Ссылки отправлены ему в личку."
             )
             return
         except Exception:
             pass
 
+    # Employee hasn't written /start yet — give HR a ready-to-forward message
+    bot_username = (await bot.get_me()).username
+    forward_text = (
+        f"Привет! Тебя добавили в рабочие группы.\n"
+        f"Напиши боту @{bot_username} команду /start — он пришлёт тебе ссылки."
+    )
     await hr_message.reply_text(
-        f"✅ @{emp.tg_username} добавлен.\n\n"
-        f"📎 Ссылки для передачи сотруднику ({len(links)} групп):\n\n{links_text}\n\n"
-        "⚠️ Попроси сотрудника написать боту /start — тогда в следующий раз ссылки придут ему напрямую."
+        f"✅ @{emp.tg_username} добавлен в систему.\n\n"
+        f"📨 Перешли это сообщение сотруднику:\n\n"
+        f"——————————\n"
+        f"{forward_text}\n"
+        f"——————————"
     )
 
 
