@@ -14,8 +14,8 @@ async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
 
         groups_q = select(Group).where(
             Group.is_configured == True,
-            or_(Group.business_unit_id == None, Group.business_unit_id == emp.business_unit_id),
-            or_(Group.role_id == None, Group.role_id == emp.role_id),
+            or_(Group.business_unit_id.is_(None), Group.business_unit_id == emp.business_unit_id),
+            or_(Group.role_id.is_(None), Group.role_id == emp.role_id),
         )
         groups = (await session.scalars(groups_q)).all()
 
