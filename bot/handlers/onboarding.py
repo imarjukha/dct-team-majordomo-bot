@@ -20,10 +20,13 @@ async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
         groups = (await session.scalars(groups_q)).all()
 
         name = emp.name or f"@{emp.tg_username}"
+        import logging
+        _log = logging.getLogger(__name__)
+        _log.info(f"ONBOARD: emp={emp.tg_username} bu={emp.business_unit_id} role={emp.role_id} groups_found={len(groups)}")
 
         if not groups:
             await hr_message.reply_text(
-                f"✅ {name} добавлен в систему, но подходящих групп не найдено."
+                f"✅ {name} добавлен в систему, но подходящих групп не найдено. (bu={emp.business_unit_id}, role={emp.role_id})"
             )
             return
 
