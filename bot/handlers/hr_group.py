@@ -189,11 +189,13 @@ async def _handle_fire(update, context, username, last_day: datetime | None):
             if old:
                 old.cancelled = True
 
+            initiator = update.effective_user.username
             scheduled = ScheduledOffboarding(
                 employee_id=employee.id,
                 fire_at=fire_at,
                 hr_chat_id=update.effective_chat.id,
                 hr_message_id=update.message.message_id,
+                initiated_by=initiator,
             )
             session.add(scheduled)
             await session.commit()
@@ -308,3 +310,4 @@ async def _ask_clarification(target, username, missing, catalog, first: bool):
         await target.reply_text(text, parse_mode="Markdown", reply_markup=kb)
     else:
         await target.edit_message_text(text, parse_mode="Markdown", reply_markup=kb)
+
