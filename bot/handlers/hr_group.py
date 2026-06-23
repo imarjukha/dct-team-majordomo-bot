@@ -99,7 +99,9 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}]
         )
-        data = json.loads(response.content[0].text.strip())
+        raw = response.content[0].text.strip()
+        logger.info(f"CLAUDE_RAW_RESPONSE: {raw[:500]}")
+        data = json.loads(raw)
 
         # Resolve names → IDs with fuzzy match
         def find_id(name, items):
