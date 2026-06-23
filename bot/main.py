@@ -12,7 +12,7 @@ from telegram.ext import (
 from config import BOT_TOKEN
 from db.database import init_db
 from bot.handlers.group_setup import on_bot_added, setup_command, setup_callback
-from bot.handlers.hr_group import hr_group_message
+from bot.handlers.hr_group import hr_group_message, handle_hr_clarify_callback
 from bot.handlers.onboarding import handle_start
 from bot.handlers.activity import count_message
 from bot.handlers.commands import (
@@ -81,6 +81,7 @@ def main():
 
     # Inline callbacks
     app.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
+    app.add_handler(CallbackQueryHandler(handle_hr_clarify_callback, pattern="^hr_clarify:"))
     app.add_handler(CallbackQueryHandler(handle_new_venue_bu_callback, pattern="^admin:new_venue_bu:"))
     app.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin:"))
 
