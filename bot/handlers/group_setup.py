@@ -40,9 +40,11 @@ async def setup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Эта команда работает только в группах.")
         return
 
-    # Check permission
+    # Check permission — owner has all rights, admins need can_restrict_members
     member: ChatMember = await context.bot.get_chat_member(chat.id, user.id)
-    if not getattr(member, "can_restrict_members", False):
+    is_owner = member.status == "creator"
+    can_restrict = getattr(member, "can_restrict_members", False)
+    if not (is_owner or can_restrict):
         await update.message.reply_text("⛔ Нет прав для настройки группы.")
         return
 
