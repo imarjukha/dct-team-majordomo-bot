@@ -104,6 +104,7 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
   "action": "hire" | "fire" | null,
   "username": "telegram_username без @ или null",
   "full_name": "Имя Фамилия если нет username или null",
+  "gender": "m" | "f" | null,
   "role_name": "точное название из списка или null",
   "bu_name": "точное название из списка или null",
   "last_day": "YYYY-MM-DD" | null,
@@ -122,6 +123,7 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
 - Если есть @username — используй его в поле username
 - Если только имя/фамилия — запиши в full_name, username оставь null
 - "Увольнение ДД.ММ Имя Фамилия" — action="fire", дата в last_day, имя в full_name
+- gender: "m" если имя мужское (Артём, Руслан, Никита...), "f" если женское (Елизавета, Яна, Милена...)
 
 Сообщение: {text}"""
 
@@ -192,6 +194,7 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
             "action": data.get("action"),
             "username": username,
             "full_name": full_name,
+            "gender": data.get("gender"),
             "role_id": role_id,
             "bu_id": bu_id,
             "last_day": last_day,
@@ -213,6 +216,8 @@ async def _handle_hire(update, context, username, role_id, bu_id, missing, catal
                 business_unit_id=bu_id
             )
             session.add(employee)
+        # Store gender in context for onboarding message
+        employee._gender = parsed.get("gender")
         else:
             if role_id: employee.role_id = role_id
             if bu_id: employee.business_unit_id = bu_id
