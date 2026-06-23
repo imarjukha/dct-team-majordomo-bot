@@ -206,7 +206,12 @@ async def _handle_hire(update, context, username, role_id, bu_id, missing, catal
     async with AsyncSessionLocal() as session:
         employee = await session.scalar(select(Employee).where(Employee.tg_username == username))
         if not employee:
-            employee = Employee(tg_username=username, role_id=role_id, business_unit_id=bu_id)
+            employee = Employee(
+                tg_username=username,
+                name=parsed.get("full_name") or None,
+                role_id=role_id,
+                business_unit_id=bu_id
+            )
             session.add(employee)
         else:
             if role_id: employee.role_id = role_id
