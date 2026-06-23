@@ -30,7 +30,7 @@ async def process_scheduled_offboardings(bot: Bot):
             record.cancelled = True  # mark processed
             await session.commit()
 
-            kicked = await run_offboarding(bot, employee)
+            kicked = await run_offboarding(bot, employee, initiated_by=record.initiated_by)
 
             try:
                 if kicked == -1:
