@@ -33,7 +33,6 @@ async def _load_catalog() -> dict:
 
 async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    logger.info(f"HR_GROUP_MESSAGE: chat_id={chat_id}, HR_GROUP_ID={HR_GROUP_ID}, match={chat_id == HR_GROUP_ID}")
     if chat_id != HR_GROUP_ID:
         return
     message = update.message
@@ -45,7 +44,6 @@ async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     catalog = await _load_catalog()
     parsed = await _parse_hr_message(text, catalog)
-    logger.info(f"HR_PARSED: {parsed}")
     if not parsed or not parsed.get("action"):
         return
 
@@ -133,9 +131,7 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}]
         )
-        logger.info(f"CLAUDE_RESPONSE_TYPE: {response.stop_reason}, content_len={len(response.content)}")
         raw = response.content[0].text.strip()
-        logger.info(f"CLAUDE_RAW_RESPONSE: {raw[:500]}")
         # Strip markdown code blocks if present
         if raw.startswith("```"):
             raw = raw.split("```")[1]
