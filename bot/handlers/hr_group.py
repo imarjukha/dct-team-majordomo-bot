@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from datetime import datetime, timedelta
 import anthropic
@@ -11,6 +12,7 @@ from config import HR_GROUP_ID, ANTHROPIC_API_KEY
 from bot.handlers.onboarding import run_onboarding
 from bot.handlers.offboarding import run_offboarding
 
+logger = logging.getLogger(__name__)
 ai_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 USERNAME_RE = re.compile(r"@(\w+)")
 
@@ -30,8 +32,6 @@ async def _load_catalog() -> dict:
 
 
 async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import logging
-    logger = logging.getLogger(__name__)
     chat_id = update.effective_chat.id
     logger.info(f"HR_GROUP_MESSAGE: chat_id={chat_id}, HR_GROUP_ID={HR_GROUP_ID}, match={chat_id == HR_GROUP_ID}")
     if chat_id != HR_GROUP_ID:
@@ -126,7 +126,7 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
 
         role_id = find_id(data.get("role_name"), catalog["roles"])
         bu_id = find_id(data.get("bu_name"), catalog["bus"])
-            # Parse last_day
+        # Parse last_day
         last_day = None
         raw_date = data.get("last_day")
         if raw_date:
@@ -147,7 +147,8 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
             "last_day": last_day,
             "missing": missing,
         }
-    except Exception:
+    except Exception as e:
+        logger.error(f"HR_PARSE_ERROR: {e}", exc_info=True)
         return None
 
 
