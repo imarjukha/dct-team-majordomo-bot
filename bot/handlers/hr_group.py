@@ -20,10 +20,12 @@ async def _load_catalog() -> dict:
         bus = (await session.scalars(select(BusinessUnit))).all()
         venues = (await session.scalars(select(Venue))).all()
         roles = (await session.scalars(select(Role))).all()
+        employees = (await session.scalars(select(Employee).where(Employee.status == "active"))).all()
     return {
         "bus": [{"id": b.id, "name": b.name} for b in bus],
         "venues": [{"id": v.id, "name": v.name, "bu_id": v.business_unit_id} for v in venues],
         "roles": [{"id": r.id, "name": r.name} for r in roles],
+        "employees": [{"id": e.id, "name": e.name or "", "username": e.tg_username or ""} for e in employees],
     }
 
 
@@ -34,8 +36,8 @@ async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not message or not message.text:
         return
     text = message.text
-    if not USERNAME_RE.search(text):
-        return
+    # Must mention at least one person — either @username or look like an HR event
+    # We'll let Claude decide if it's relevant
 
     catalog = await _load_catalog()
     parsed = await _parse_hr_message(text, catalog)
