@@ -99,8 +99,17 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}]
         )
+        logger.info(f"CLAUDE_RESPONSE_TYPE: {response.stop_reason}, content_len={len(response.content)}")
         raw = response.content[0].text.strip()
         logger.info(f"CLAUDE_RAW_RESPONSE: {raw[:500]}")
+        # Strip markdown code blocks if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+        if not raw or raw == "null":
+            return None
         data = json.loads(raw)
 
         # Resolve names → IDs with fuzzy match
