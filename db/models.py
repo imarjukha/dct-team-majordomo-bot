@@ -121,8 +121,23 @@ class ActivityLog(Base):
 
 
 class AdminState(Base):
-    """Stores pending input state for admin users (replaces context.user_data)."""
+    """Stores pending input state for admin users."""
     __tablename__ = "admin_state"
 
     tg_user_id = Column(BigInteger, primary_key=True)
-    action = Column(String, nullable=True)  # "bu" | "venue" | "role" | None
+    action = Column(String, nullable=True)
+
+
+class ScheduledOffboarding(Base):
+    """Deferred offboarding: fire employee at end of their last working day."""
+    __tablename__ = "scheduled_offboarding"
+
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    fire_at = Column(DateTime, nullable=False)           # конец последнего дня (23:59)
+    hr_chat_id = Column(BigInteger, nullable=True)       # куда слать отчёт
+    hr_message_id = Column(Integer, nullable=True)       # сообщение HR для ответа
+    created_at = Column(DateTime, default=func.now())
+    cancelled = Column(Boolean, default=False)
+
+    employee = relationship("Employee")
