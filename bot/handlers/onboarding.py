@@ -15,7 +15,6 @@ async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
         groups_q = select(Group).where(
             Group.is_configured == True,
             or_(Group.business_unit_id == None, Group.business_unit_id == emp.business_unit_id),
-            or_(Group.venue_id == None, Group.venue_id == emp.venue_id),
             or_(Group.role_id == None, Group.role_id == emp.role_id),
         )
         groups = (await session.scalars(groups_q)).all()
@@ -150,3 +149,4 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 "Привет! Ты пока не числишься в системе. Обратись к HR."
             )
+
