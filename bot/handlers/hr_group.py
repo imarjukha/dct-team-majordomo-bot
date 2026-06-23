@@ -30,7 +30,11 @@ async def _load_catalog() -> dict:
 
 
 async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.id != HR_GROUP_ID:
+    import logging
+    logger = logging.getLogger(__name__)
+    chat_id = update.effective_chat.id
+    logger.info(f"HR_GROUP_MESSAGE: chat_id={chat_id}, HR_GROUP_ID={HR_GROUP_ID}, match={chat_id == HR_GROUP_ID}")
+    if chat_id != HR_GROUP_ID:
         return
     message = update.message
     if not message or not message.text:
