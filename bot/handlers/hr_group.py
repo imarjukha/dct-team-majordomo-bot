@@ -216,8 +216,6 @@ async def _handle_hire(update, context, username, role_id, bu_id, missing, catal
                 business_unit_id=bu_id
             )
             session.add(employee)
-        # Store gender in context for onboarding message
-        employee._gender = parsed.get("gender")
         else:
             if role_id: employee.role_id = role_id
             if bu_id: employee.business_unit_id = bu_id
