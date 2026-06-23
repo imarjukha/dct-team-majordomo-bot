@@ -80,6 +80,7 @@ class Group(Base):
     name = Column(String, nullable=False)
 
     business_unit_id = Column(Integer, ForeignKey("business_units.id"), nullable=True)
+    venue_id = Column(Integer, ForeignKey("venues.id"), nullable=True)
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
 
     is_configured = Column(Boolean, default=False)
