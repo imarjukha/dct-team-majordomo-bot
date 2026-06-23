@@ -45,11 +45,39 @@ async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     catalog = await _load_catalog()
     parsed = await _parse_hr_message(text, catalog)
-    if not parsed or not parsed.get("action") or not parsed.get("username"):
+    logger.info(f"HR_PARSED: {parsed}")
+    if not parsed or not parsed.get("action"):
         return
 
     action = parsed["action"]
-    username = parsed["username"]
+    username = parsed.get("username")
+
+    # If no username from Claude, try to match by full_name in catalog
+    if not username:
+        full_name = parsed.get("full_name", "")
+        if full_name:
+            name_lower = full_name.lower().strip()
+            for emp in catalog.get("employees", []):
+                emp_name = (emp.get("name") or "").lower().strip()
+                if emp_name and (name_lower in emp_name or emp_name in name_lower):
+                    username = emp.get("username")
+                    break
+            if not username:
+                parts = name_lower.split()
+                for emp in catalog.get("employees", []):
+                    emp_name = (emp.get("name") or "").lower()
+                    if any(part in emp_name for part in parts if len(part) > 3):
+                        username = emp.get("username")
+                        break
+
+    if not username:
+        full_name = parsed.get("full_name", "")
+        if full_name:
+            await update.message.reply_text(
+                f"⚠️ Не удалось найти сотрудника «{full_name}» в базе.\n"
+                f"Укажи @username или добавь сотрудника."
+            )
+        return
 
     if action == "hire":
         await _handle_hire(
@@ -76,7 +104,8 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
 Верни ТОЛЬКО JSON без пояснений:
 {{
   "action": "hire" | "fire" | null,
-  "username": "username_без_@" | null,
+  "username": "telegram_username без @ или null",
+  "full_name": "Имя Фамилия если нет username или null",
   "role_name": "точное название из списка или null",
   "bu_name": "точное название из списка или null",
   "last_day": "YYYY-MM-DD" | null,
@@ -90,6 +119,11 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
   ("последний день 28 июня" → "2026-06-28", "работает до конца недели" → ближайшая пятница,
    "до конца месяца" → последний день текущего месяца, не упомянута → null)
 - missing: поля которые нужны для найма но не определены
+
+Правила:
+- Если есть @username — используй его в поле username
+- Если только имя/фамилия — запиши в full_name, username оставь null
+- "Увольнение ДД.ММ Имя Фамилия" — action="fire", дата в last_day, имя в full_name
 
 Сообщение: {text}"""
 
@@ -139,9 +173,29 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
         if not role_id: missing.append("role")
         if not bu_id: missing.append("bu")
 
+        username = data.get("username")
+        full_name = data.get("full_name", "")
+
+        # Try to match full_name to existing employee username
+        if not username and full_name:
+            name_lower = full_name.lower().strip()
+            for emp in catalog.get("employees", []):
+                emp_name = (emp.get("name") or "").lower().strip()
+                if emp_name and (name_lower in emp_name or emp_name in name_lower):
+                    username = emp.get("username")
+                    break
+            if not username:
+                parts = name_lower.split()
+                for emp in catalog.get("employees", []):
+                    emp_name = (emp.get("name") or "").lower()
+                    if any(part in emp_name for part in parts if len(part) > 3):
+                        username = emp.get("username")
+                        break
+
         return {
             "action": data.get("action"),
-            "username": data.get("username"),
+            "username": username,
+            "full_name": full_name,
             "role_id": role_id,
             "bu_id": bu_id,
             "last_day": last_day,
