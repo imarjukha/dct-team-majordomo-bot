@@ -29,7 +29,6 @@ class Venue(Base):
     business_unit_id = Column(Integer, ForeignKey("business_units.id"), nullable=False)
 
     business_unit = relationship("BusinessUnit", back_populates="venues")
-    employees = relationship("Employee", back_populates="venue")
     groups = relationship("Group", back_populates="venue")
 
 
@@ -62,7 +61,6 @@ class Employee(Base):
     name = Column(String, nullable=True)
 
     business_unit_id = Column(Integer, ForeignKey("business_units.id"), nullable=True)
-    venue_id = Column(Integer, ForeignKey("venues.id"), nullable=True)
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
 
     status = Column(String, default="active")
@@ -70,7 +68,6 @@ class Employee(Base):
     fired_at = Column(DateTime, nullable=True)
 
     business_unit = relationship("BusinessUnit", back_populates="employees")
-    venue = relationship("Venue", back_populates="employees")
     role = relationship("Role", back_populates="employees")
     memberships = relationship("GroupMember", back_populates="employee")
 
@@ -83,7 +80,6 @@ class Group(Base):
     name = Column(String, nullable=False)
 
     business_unit_id = Column(Integer, ForeignKey("business_units.id"), nullable=True)
-    venue_id = Column(Integer, ForeignKey("venues.id"), nullable=True)
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
 
     is_configured = Column(Boolean, default=False)
