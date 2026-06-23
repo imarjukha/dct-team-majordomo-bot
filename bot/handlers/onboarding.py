@@ -8,7 +8,7 @@ from config import SUPERADMIN_ID
 
 
 async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
-    """Find all matching groups and send invite links to the employee or HR."""
+    """Onboard employee: add directly to groups if tg_user_id known, otherwise give HR a forward message."""
     async with AsyncSessionLocal() as session:
         emp = await session.get(Employee, employee.id)
 
@@ -19,76 +19,65 @@ async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
         )
         groups = (await session.scalars(groups_q)).all()
 
+        name = emp.name or f"@{emp.tg_username}"
+
         if not groups:
             await hr_message.reply_text(
-                f"✅ @{emp.tg_username} добавлен, но подходящих групп не найдено."
+                f"✅ {name} добавлен в систему, но подходящих групп не найдено."
             )
             return
 
-        links = []
-        for group in groups:
-            try:
-                link = await bot.create_chat_invite_link(
-                    chat_id=group.tg_chat_id,
-                    member_limit=1,
-                    name=f"Онбординг @{emp.tg_username}"
-                )
-                links.append((group.name, link.invite_link))
-
-                existing = await session.scalar(
-                    select(GroupMember).where(
-                        GroupMember.group_id == group.id,
-                        GroupMember.employee_id == emp.id,
-                        GroupMember.left_at == None,
+        if emp.tg_user_id:
+            # Employee already started the bot — add directly to groups
+            added_groups = []
+            failed_groups = []
+            for group in groups:
+                try:
+                    await bot.add_chat_member(
+                        chat_id=group.tg_chat_id,
+                        user_id=emp.tg_user_id
                     )
-                )
-                if not existing:
-                    session.add(GroupMember(group_id=group.id, employee_id=emp.id))
-            except Exception:
-                pass
+                    added_groups.append(group.name)
+                    existing = await session.scalar(
+                        select(GroupMember).where(
+                            GroupMember.group_id == group.id,
+                            GroupMember.employee_id == emp.id,
+                            GroupMember.left_at == None,
+                        )
+                    )
+                    if not existing:
+                        session.add(GroupMember(group_id=group.id, employee_id=emp.id))
+                except Exception:
+                    failed_groups.append(group.name)
 
-        await session.commit()
+            await session.commit()
 
-    if not links:
-        await hr_message.reply_text(
-            f"⚠️ Не удалось создать ссылки для @{emp.tg_username}. "
-            "Проверь, что бот — администратор во всех группах."
-        )
-        return
-
-    links_text = "\n".join(f"• {name}: {url}" for name, url in links)
-
-    if emp.tg_user_id:
-        # Employee already wrote /start — send links directly
-        try:
+            groups_list = ", ".join(added_groups) if added_groups else "—"
             await bot.send_message(
                 chat_id=emp.tg_user_id,
                 text=(
                     f"👋 Добро пожаловать в команду!\n\n"
-                    f"Вот ссылки на твои рабочие группы:\n\n{links_text}\n\n"
-                    "Ссылки одноразовые — используй каждую один раз."
+                    f"Я добавил тебя в: {groups_list}.\n"
+                    "Если что-то не открывается — напиши своему руководителю."
                 )
             )
-            await hr_message.reply_text(
-                f"✅ @{emp.tg_username} добавлен. Ссылки отправлены ему в личку."
-            )
-            return
-        except Exception:
-            pass
+            msg = f"✅ {name} уже запустил бота — добавлен в группы: {groups_list}."
+            if failed_groups:
+                msg += f"\n⚠️ Не удалось добавить в: {', '.join(failed_groups)}."
+            await hr_message.reply_text(msg)
 
-    # Employee hasn't written /start yet — give HR a ready-to-forward message
-    bot_username = (await bot.get_me()).username
-    forward_text = (
-        f"Привет! Тебя добавили в рабочие группы.\n"
-        f"Напиши боту @{bot_username} команду /start — он пришлёт тебе ссылки."
-    )
-    await hr_message.reply_text(
-        f"✅ @{emp.tg_username} добавлен в систему.\n\n"
-        f"📨 Перешли это сообщение сотруднику:\n\n"
-        f"——————————\n"
-        f"{forward_text}\n"
-        f"——————————"
-    )
+        else:
+            # Employee hasn't started the bot yet — give HR a short forward message
+            bot_me = await bot.get_me()
+            bot_username = bot_me.username
+            await hr_message.reply_text(
+                f"✅ {name} добавлен в систему.\n\n"
+                f"📨 Перешли ему это сообщение:\n\n"
+                f"——————————\n"
+                f"Привет! Напиши боту @{bot_username} команду /start "
+                f"— он автоматически подключит тебя к нужным рабочим группам.\n"
+                f"——————————"
+            )
 
 
 ADMIN_KEYBOARD = ReplyKeyboardMarkup(
@@ -151,9 +140,11 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             employee.tg_user_id = user.id
             employee.name = user.full_name
             await session.commit()
-            await update.message.reply_text(
-                "✅ Готово! Теперь уведомления и ссылки будут приходить тебе напрямую."
-            )
+            await session.refresh(employee)
+            # Auto-onboard: add to groups immediately
+            from bot.handlers.onboarding import run_onboarding as _onboard
+            await _onboard(update.get_bot(), employee, update.message)
+            return
         else:
             await update.message.reply_text(
                 "Привет! Ты пока не числишься в системе. Обратись к HR."
