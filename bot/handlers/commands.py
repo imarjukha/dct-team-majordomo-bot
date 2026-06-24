@@ -433,3 +433,51 @@ async def cmd_debug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Roles: {role_names}"
     )
     await update.message.reply_text(text)
+
+
+async def cmd_add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Add a channel or group to registry by chat_id. Usage: /add_channel -1001234567890 [name]"""
+    from bot.handlers.admin_auth import is_admin
+    if not await is_admin(update.effective_user.id):
+        await update.message.reply_text("⛔ Нет прав.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "Использование: /add_channel CHAT_ID [Название]\n\n"
+            "CHAT_ID канала можно узнать через @username_to_id_bot или переслав сообщение из канала боту @userinfobot"
+        )
+        return
+
+    try:
+        chat_id = int(args[0])
+    except ValueError:
+        await update.message.reply_text("⛔ Неверный формат chat_id. Пример: /add_channel -1001234567890")
+        return
+
+    name = " ".join(args[1:]) if len(args) > 1 else str(chat_id)
+
+    # Try to get chat info from Telegram
+    try:
+        chat = await context.bot.get_chat(chat_id)
+        name = chat.title or name
+    except Exception:
+        pass
+
+    async with AsyncSessionLocal() as session:
+        from db.models import Group
+        from sqlalchemy import select
+        existing = await session.scalar(select(Group).where(Group.tg_chat_id == chat_id))
+        if existing:
+            await update.message.reply_text(f"ℹ️ Канал/группа уже в реестре: {existing.name}")
+            return
+
+        group = Group(tg_chat_id=chat_id, name=name, is_configured=False)
+        session.add(group)
+        await session.commit()
+
+    await update.message.reply_text(
+        f"✅ {name} добавлен(а) в реестр.\n\n"
+        f"Теперь настрой через /admin → 📋 Группы → выбери и настрой BU/роли."
+    )
