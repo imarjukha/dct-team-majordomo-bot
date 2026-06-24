@@ -15,7 +15,7 @@ from bot.handlers.onboarding import handle_start
 from bot.handlers.activity import count_message
 from bot.handlers.commands import (
     cmd_debug, admin_menu, admin_callback, handle_text_input,
-    set_employee, handle_new_venue_bu_callback,
+    set_employee, handle_new_venue_bu_callback, cmd_add_channel,
 )
 from bot.handlers.admin_auth import (
     ensure_superadmin_in_db, cmd_add_admin, cmd_remove_admin, cmd_list_admins
@@ -84,6 +84,7 @@ def main():
     app.add_handler(CommandHandler("admins", cmd_list_admins))
     app.add_handler(CommandHandler("setup", setup_command))
     app.add_handler(CommandHandler("debug", cmd_debug))
+    app.add_handler(CommandHandler("add_channel", cmd_add_channel))
 
     # Inline callbacks
     app.add_handler(CallbackQueryHandler(setup_callback, pattern="^setup_"))
