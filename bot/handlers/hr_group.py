@@ -101,14 +101,15 @@ def _extract_name_from_text(text: str, username: str | None) -> str | None:
     clean = re.sub(r'\S+@\S+\.\S+', '', clean)
     # Remove time like 8:00-21:15
     clean = re.sub(r'\d{1,2}:\d{2}', '', clean)
-    # Split into lines and find lines that look like names (2-3 capitalized Russian words)
+    # Split into lines and find lines that look like names (2-3 capitalized words)
     for line in clean.split('\n'):
         line = line.strip()
-        words = [w for w in line.split() if w and w[0].isupper() and len(w) > 1]
-        # A name is 2 words, both starting with capital, no digits, reasonable length
-        if len(words) == 2 and all(w.isalpha() for w in words) and all(3 < len(w) < 20 for w in words):
+        words = [w.strip('.,!?:;') for w in line.split() if w]
+        words = [w for w in words if w and len(w) > 1 and w[0].isupper() and w.replace('-','').isalpha()]
+        # A name: 2-3 words, all start with capital, all alphabetic, reasonable length
+        if len(words) == 2 and all(2 <= len(w) <= 25 for w in words):
             return ' '.join(words)
-        if len(words) == 3 and all(w.isalpha() for w in words):
+        if len(words) == 3 and all(2 <= len(w) <= 25 for w in words):
             return ' '.join(words)
     return None
 
