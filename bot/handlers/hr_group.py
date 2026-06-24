@@ -176,20 +176,24 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
         full_name = data.get("full_name", "")
 
         # Try to match full_name to existing employee username
+        # Require BOTH first and last name to match to avoid false positives
         if not username and full_name:
             name_lower = full_name.lower().strip()
+            name_parts = [p for p in name_lower.split() if len(p) > 2]
             for emp in catalog.get("employees", []):
                 emp_name = (emp.get("name") or "").lower().strip()
-                if emp_name and (name_lower in emp_name or emp_name in name_lower):
+                if not emp_name:
+                    continue
+                if name_lower == emp_name:
                     username = emp.get("username")
                     break
-            if not username:
-                parts = name_lower.split()
-                for emp in catalog.get("employees", []):
-                    emp_name = (emp.get("name") or "").lower()
-                    if any(part in emp_name for part in parts if len(part) > 3):
-                        username = emp.get("username")
-                        break
+                emp_parts = emp_name.split()
+                if len(name_parts) >= 2 and all(
+                    any(np in ep or ep in np for ep in emp_parts)
+                    for np in name_parts
+                ):
+                    username = emp.get("username")
+                    break
 
         return {
             "action": data.get("action"),
