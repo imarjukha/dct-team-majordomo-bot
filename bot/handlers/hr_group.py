@@ -88,6 +88,31 @@ async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _handle_fire(update, context, username, parsed.get("last_day"))
 
 
+def _extract_name_from_text(text: str, username: str | None) -> str | None:
+    """Extract person's name from HR message text without using AI."""
+    import re
+    # Remove @username mentions
+    clean = re.sub(r'@\w+', '', text)
+    # Remove dates like 24.07, 24.06
+    clean = re.sub(r'\d{1,2}\.\d{2}(\.\d{4})?', '', clean)
+    # Remove phone numbers
+    clean = re.sub(r'[\+7\d][\d\s\-\(\)]{7,}', '', clean)
+    # Remove emails
+    clean = re.sub(r'\S+@\S+\.\S+', '', clean)
+    # Remove time like 8:00-21:15
+    clean = re.sub(r'\d{1,2}:\d{2}', '', clean)
+    # Split into lines and find lines that look like names (2-3 capitalized Russian words)
+    for line in clean.split('\n'):
+        line = line.strip()
+        words = [w for w in line.split() if w and w[0].isupper() and len(w) > 1]
+        # A name is 2 words, both starting with capital, no digits, reasonable length
+        if len(words) == 2 and all(w.isalpha() for w in words) and all(3 < len(w) < 20 for w in words):
+            return ' '.join(words)
+        if len(words) == 3 and all(w.isalpha() for w in words):
+            return ' '.join(words)
+    return None
+
+
 async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
     today = datetime.now().strftime("%Y-%m-%d")
     bu_list = ", ".join(f'"{b["name"]}"' for b in catalog["bus"]) or "нет данных"
@@ -104,7 +129,6 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
 {{
   "action": "hire" | "fire" | null,
   "username": "telegram_username без @ или null",
-  "full_name": "Имя Фамилия если нет username или null",
   "gender": "m" | "f" | null,
   "role_name": "точное название из списка или null",
   "bu_name": "точное название из списка или null",
@@ -176,11 +200,14 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
         if not bu_id: missing.append("bu")
 
         username = data.get("username")
-        full_name = data.get("full_name", "")
+        gender = data.get("gender")
 
-        # Try to match full_name to existing employee username
-        # Require BOTH first and last name to match to avoid false positives
-        if not username and full_name:
+        # Extract full_name directly from message text — do NOT use Claude for this
+        # to avoid Claude hallucinating existing employee names
+        full_name = _extract_name_from_text(text, username)
+
+        # If fire action: try to match full_name to existing employee username
+        if not username and full_name and data.get("action") == "fire":
             name_lower = full_name.lower().strip()
             name_parts = [p for p in name_lower.split() if len(p) > 2]
             for emp in catalog.get("employees", []):
@@ -202,7 +229,7 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
             "action": data.get("action"),
             "username": username,
             "full_name": full_name,
-            "gender": data.get("gender"),
+            "gender": gender,
             "role_id": role_id,
             "bu_id": bu_id,
             "last_day": last_day,
