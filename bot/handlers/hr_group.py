@@ -72,8 +72,9 @@ async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         full_name = parsed.get("full_name", "")
         if full_name:
             await update.message.reply_text(
-                f"⚠️ Не удалось найти сотрудника «{full_name}» в базе.\n"
-                f"Укажи @username или добавь сотрудника."
+                f"⚠️ Не нашёл @username для «{full_name}».\n\n"
+                f"Чтобы подключить сотрудника к группам нужен Telegram username. "
+                f"Уточни его у сотрудника и напиши снова с @username."
             )
         return
 
