@@ -42,10 +42,12 @@ async def setup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check permission — owner has all rights, admins need can_restrict_members
     member: ChatMember = await context.bot.get_chat_member(chat.id, user.id)
+    import logging
+    logging.getLogger(__name__).info(f"SETUP_PERM: user={user.id} status={member.status} can_restrict={getattr(member, 'can_restrict_members', None)}")
     is_owner = member.status == "creator"
     can_restrict = getattr(member, "can_restrict_members", False)
     if not (is_owner or can_restrict):
-        await update.message.reply_text("⛔ Нет прав для настройки группы.")
+        await update.message.reply_text(f"⛔ Нет прав для настройки группы. (status={member.status})")
         return
 
     async with AsyncSessionLocal() as session:
