@@ -47,10 +47,22 @@ async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
             failed_groups = []
             for group in groups:
                 try:
-                    await bot.add_chat_member(
-                        chat_id=group.tg_chat_id,
-                        user_id=emp.tg_user_id
-                    )
+                    try:
+                        await bot.add_chat_member(
+                            chat_id=group.tg_chat_id,
+                            user_id=emp.tg_user_id
+                        )
+                    except Exception:
+                        # Maybe user was kicked — unban first then retry
+                        await bot.unban_chat_member(
+                            chat_id=group.tg_chat_id,
+                            user_id=emp.tg_user_id,
+                            only_if_banned=True
+                        )
+                        await bot.add_chat_member(
+                            chat_id=group.tg_chat_id,
+                            user_id=emp.tg_user_id
+                        )
                     added_groups.append(group.name)
                     existing = await session.scalar(
                         select(GroupMember).where(
