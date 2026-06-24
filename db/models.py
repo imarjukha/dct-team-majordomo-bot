@@ -125,6 +125,16 @@ class AdminState(Base):
     action = Column(String, nullable=True)
 
 
+class PendingUser(Base):
+    """Users who wrote /start but are not in the system yet."""
+    __tablename__ = "pending_users"
+
+    tg_user_id = Column(BigInteger, primary_key=True)
+    tg_username = Column(String, nullable=True)
+    full_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+
 class ScheduledOffboarding(Base):
     """Deferred offboarding: fire employee at end of their last working day."""
     __tablename__ = "scheduled_offboarding"
