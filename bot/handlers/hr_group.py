@@ -82,7 +82,8 @@ async def hr_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _handle_hire(
             update, context, username,
             parsed.get("role_id"), parsed.get("bu_id"),
-            parsed.get("missing", []), catalog
+            parsed.get("missing", []), catalog,
+            full_name=parsed.get("full_name")
         )
     elif action == "fire":
         await _handle_fire(update, context, username, parsed.get("last_day"))
@@ -241,13 +242,13 @@ async def _parse_hr_message(text: str, catalog: dict) -> dict | None:
         return None
 
 
-async def _handle_hire(update, context, username, role_id, bu_id, missing, catalog):
+async def _handle_hire(update, context, username, role_id, bu_id, missing, catalog, full_name=None):
     async with AsyncSessionLocal() as session:
         employee = await session.scalar(select(Employee).where(Employee.tg_username == username))
         if not employee:
             employee = Employee(
                 tg_username=username,
-                name=parsed.get("full_name") or None,
+                name=full_name or None,
                 role_id=role_id,
                 business_unit_id=bu_id
             )
