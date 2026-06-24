@@ -30,6 +30,17 @@ async def run_onboarding(bot: Bot, employee: Employee, hr_message: Message):
             )
             return
 
+        # If tg_user_id not set, check PendingUser table
+        if not emp.tg_user_id and emp.tg_username:
+            pending = await session.scalar(
+                select(PendingUser).where(PendingUser.tg_username == emp.tg_username)
+            )
+            if pending:
+                emp.tg_user_id = pending.tg_user_id
+                if not emp.name:
+                    emp.name = pending.full_name
+                await session.commit()
+
         if emp.tg_user_id:
             # Employee already started the bot — add directly to groups
             added_groups = []
