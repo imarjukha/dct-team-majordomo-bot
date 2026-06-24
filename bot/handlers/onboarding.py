@@ -149,7 +149,17 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await _onboard(update.get_bot(), employee, update.message)
             return
         else:
+            # Save to pending so when HR adds them, we can find their tg_user_id
+            pending = await session.get(PendingUser, user.id)
+            if not pending:
+                session.add(PendingUser(
+                    tg_user_id=user.id,
+                    tg_username=username,
+                    full_name=user.full_name,
+                ))
+                await session.commit()
             await update.message.reply_text(
-                "Привет! Ты пока не числишься в системе. Обратись к HR."
+                "Привет! Ты пока не числишься в системе. Обратись к своему руководителю — "
+                "как только тебя оформят, я автоматически добавлю тебя в нужные группы."
             )
 
